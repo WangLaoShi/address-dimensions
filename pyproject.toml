@@ -4,14 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "address-dimensions"
-version = "0.1.0"
+version = "0.1.1"
 description = "Offline Chinese administrative address parsing"
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
 dependencies = ["chinese-address-generator==1.0.0"]
 
 [project.urls]
-"Administrative data and test generator" = "https://github.com/Ginkgoty/chinese-address-generator"
+Repository = "https://github.com/WangLaoShi/address-dimensions"
+"Address data and generator" = "https://github.com/Ginkgoty/chinese-address-generator"
 
 [tool.setuptools.packages.find]
 where = ["src"]
