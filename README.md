@@ -32,11 +32,51 @@ assert row["candidate_codes"] == "110105、220104"
 - 只把地址文本交给解析器。区划代码和各级名称来自生成器的结构化结果，用来逐字段核对。
 - 另有 38 条上游 Issue 的回归样例，包括同名、路名误命中、父级冲突、直辖市及市直管镇。
 
+### 已验证结果
+
+在 macOS / Python 3.12 上，随机验收 **10,000,000 / 10,000,000** 通过。41,934 条完整路径分别带和不带详情检查，共 **83,868 / 83,868** 通过。**659,228 / 659,228** 种不同省略和简称写法通过，歧义用例按候选代码集合核对。38 条上游 Issue 对应的回归样例也通过。随机种子为 `20261113`，数据依赖固定为 `chinese-address-generator==1.0.0`。
+
+### 从项目根目录复现
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install .
+python tests/regressions.py
+python tests/release_check.py                     # 50 万随机样本 + 全量检查
+python tests/release_check.py --samples 10000000  # 1,000 万随机样本 + 全量检查
+```
+
 ## 真实地址回归
 
 本次从本地 ByteDance 招聘数据提取 `address` 和 `city_name` 到 `tests/data/jobs-addresses.csv`，共 17,089 行、349 个不同地址。运行 `python tests/audit_jobs.py` 可生成逐行审查表 `tests/data/jobs-audit.csv`。两份数据文件都留在本地。
 
 审查通过来源城市字段和地址中显式写出的区县核对 16,994 行（313 个不同地址）。另有 12 行为重庆历史地址、16 行只核对到城市或特别行政区、58 行缺少可直接判定的区划、9 行为海外地址。这里核对的是地址文本的行政区划归属，楼宇和门牌没有独立真值。
+
+### 从原始招聘 CSV 复现
+
+在项目根目录运行以下命令。原始文件路径可以替换为本机路径。
+
+```bash
+python - ../ByteDance/Chapter1/data/jobs.csv <<'PYTHON'
+import csv
+import sys
+from pathlib import Path
+
+target = Path("tests/data/jobs-addresses.csv")
+target.parent.mkdir(parents=True, exist_ok=True)
+fields = ("address", "city_name")
+with open(sys.argv[1], encoding="utf-8-sig", newline="") as source, \
+        target.open("w", encoding="utf-8", newline="") as output:
+    writer = csv.DictWriter(output, fieldnames=fields)
+    writer.writeheader()
+    for row in csv.DictReader(source):
+        writer.writerow({field: row[field] for field in fields})
+PYTHON
+python tests/audit_jobs.py
+```
+
+真实地址审查需要同一份原始 CSV。测试脚本纳入 Git，招聘样本及逐行审查表由上述命令在本地生成。
 
 ## 上游调研
 
