@@ -3,3 +3,6 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+
+/tests/data/jobs-addresses.csv
+/tests/data/jobs-audit.csv
