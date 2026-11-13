@@ -2,6 +2,22 @@
 
 面向表格分析的中文地址结构化工具。首版支持省、地、县、乡四级正式名称，保留门牌等剩余详情。运行时离线，使用一个无第三方依赖的区划数据包，无需 pandas。
 
+## 安装
+
+在本地项目根目录运行以下命令。支持 Python 3.10 至 3.14。
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install .
+```
+
+## 使用
+
+### 解析一条地址
+
+两个函数都接收一条字符串并返回字典。`parse_address()` 的候选代码为元组，`parse_address_excel()` 将其转换成可写入单个单元格的文本。
+
 ```python
 from address_dimensions import parse_address, parse_address_excel
 
@@ -18,6 +34,48 @@ assert row["candidate_codes"] == "110105、220104"
 ```
 
 解析采用正式名称的最长连续区划前缀。支持省略任意上级、常见省市简称及地址开头重复的省市名。唯一命中时补齐上级，同名时返回候选。部分显式省市冲突会标记为 `conflict`。Excel 版把候选代码转为单个文本单元格。历史映射目前覆盖样本中的重庆江北区，全文多地址抽取仍待实现。
+
+### 省略、冲突和历史地址
+
+```python
+from address_dimensions import parse_address
+
+row = parse_address("广东南山区")
+assert (row["province"], row["city"], row["district"]) == ("广东省", "深圳市", "南山区")
+
+assert parse_address("广东省南昌市南山区粤海街道")["status"] == "conflict"
+assert parse_address("重庆市江北区庆云路1号")["status"] == "historical"
+assert parse_address("假县")["status"] == "unmatched"
+```
+
+### 返回字段
+
+| 字段 | 含义 |
+| --- | --- |
+| `province`、`city`、`district`、`township` | 省、地、县、乡四级正式名称。缺失层级为 `None`，例如直辖市通常没有独立的地级节点。 |
+| `adcode` | 命中终点的区划代码，类型为字符串。未确定时为 `None`。 |
+| `detail` | 解析后保留的路名、门牌等剩余文字。 |
+| `status` | `matched` 为唯一匹配，`ambiguous` 为存在多个候选，`conflict` 为识别到层级冲突，`historical` 为命中已收录的历史区划，`unmatched` 为无匹配。 |
+| `candidate_codes` | 歧义时的候选区划代码。普通版返回元组，Excel 版用「、」连接。 |
+| `data_version` | 当前区划快照日期，例如 `2025-12-31`。 |
+
+### 批量处理并导出 CSV
+
+输出包含原始地址和解析字段。CSV 使用 UTF-8 BOM，便于用 Excel 打开。需要保留列类型时，可在 Excel 导入时将 `adcode` 设为文本。
+
+```python
+import csv
+
+from address_dimensions import parse_address_excel
+
+addresses = ["广东南山区创业路88号", "朝阳区", "东莞市虎门镇"]
+rows = [{"address": address, **parse_address_excel(address)} for address in addresses]
+
+with open("parsed_addresses.csv", "w", encoding="utf-8-sig", newline="") as output:
+    writer = csv.DictWriter(output, fieldnames=list(rows[0]))
+    writer.writeheader()
+    writer.writerows(rows)
+```
 
 ## 区划数据
 
